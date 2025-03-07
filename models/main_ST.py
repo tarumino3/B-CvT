@@ -1,7 +1,7 @@
 import torch.nn as nn
 import numpy as np
 from geomloss import SamplesLoss
-from CvT_ST.function import calc_content_loss, calc_style_loss, normal, normal_W
+from CvT_ST.function import calc_content_loss, calc_style_loss, normal, normal_W, branch_cosine_similarity_loss
 from einops import rearrange
 from itertools import repeat
 from collections.abc import Iterable
@@ -50,10 +50,11 @@ class Content_ConvEmbed(nn.Module):
         """
         B, L, C = x.shape
         x = x.transpose(1, 2).reshape(B, C, H, W)
-        # Apply convolution
         x = self.proj(x)
         B, C_new, H_new, W_new = x.shape
         x = rearrange(x, 'b c h w -> b (h w) c') # Rearrange back to [B, L, embed_dim]
+        if self.norm:
+            x = self.norm(x)
         return x
 
 class main_ST(nn.Module):
@@ -84,7 +85,7 @@ class main_ST(nn.Module):
                  embed_dim=512,
                  stride=1,
                  padding=1,
-                 norm_layer=None)
+        )
 
     def flatten_features(self, feat_list):
         new_feats = []
@@ -110,7 +111,7 @@ class main_ST(nn.Module):
             results.append(func(results[-1]))
         return results[1:]               
 
-    def forward(self, samples_c, samples_s, W_sim = False, separate = False, test = False):
+    def forward(self, samples_c, samples_s, test = False):
 
         content_image = samples_c
         style_image = samples_s
@@ -120,38 +121,30 @@ class main_ST(nn.Module):
 
         C_style, C_content, C_style_inter, C_content_inter, h_c, w_c  = self.SC_encoder(content_image, test=('content' if test else None))
         S_style, S_content, S_style_inter, S_content_inter, h_s, w_s = self.SC_encoder(style_image, test=('style' if test else None))
-        
+
         embedd_C_content = self.convpos(C_content, h_c, w_c)
         embedd_S_content = self.convpos(S_content, h_s, w_s)
 
-        hs = self.transformer(embedd_C_content, S_style ,h_c, w_c, h_s, w_s)[0]
-        if test:
-            return self.decode(hs, h_c, w_c, (content_H, content_W))
-        I_hs = self.transformer(embedd_S_content, C_style, h_s, w_s, h_c, w_c)[0]
-
+        hs = self.transformer(embedd_C_content, S_style ,h_c, w_c, h_s, w_s)
         Stylized = self.decode(hs, h_c, w_c, (content_H, content_W))
-        I_Stylized = self.decode(I_hs, h_s, w_s, (style_H, style_W))       
+
+        if test:
+            return Stylized       
 
         content_feats = self.encode_with_intermediate(content_image)
         style_feats = self.encode_with_intermediate(style_image)
         Stylized_feats = self.encode_with_intermediate(Stylized)
-        I_Stylized_feats = self.encode_with_intermediate(I_Stylized)
 
         loss_c = calc_content_loss(normal(Stylized_feats[-1]), normal(content_feats[-1]))+calc_content_loss(normal(Stylized_feats[-2]), normal(content_feats[-2]))
         loss_s = calc_style_loss(Stylized_feats[0], style_feats[0])
         for i in range(1, 5):
             loss_s += calc_style_loss(Stylized_feats[i], style_feats[i])
 
-        I_loss_c = calc_content_loss(normal(I_Stylized_feats[-1]), normal(style_feats[-1]))+calc_content_loss(normal(I_Stylized_feats[-2]), normal(style_feats[-2]))
-        I_loss_s = calc_style_loss(I_Stylized_feats[0], content_feats[0])
-        for i in range(1, 5):
-            I_loss_s += calc_style_loss(I_Stylized_feats[i], content_feats[i]) 
+        content_loss = loss_c
+        style_loss = loss_s 
 
-        content_loss = loss_c + I_loss_c
-        style_loss = loss_s + I_loss_s
-
-        Icc = self.decode(self.transformer(embedd_C_content, C_style, h_c, w_c, h_c, w_c)[0], h_c, w_c, (content_H, content_W))
-        Iss = self.decode(self.transformer(embedd_S_content, S_style, h_s, w_s, h_s, w_s)[0], h_s, w_s, (style_H, style_W))
+        Icc = self.decode(self.transformer(embedd_C_content, C_style, h_c, w_c, h_c, w_c), h_c, w_c, (content_H, content_W))
+        Iss = self.decode(self.transformer(embedd_S_content, S_style, h_s, w_s, h_s, w_s), h_s, w_s, (style_H, style_W))
         Icc_feats=self.encode_with_intermediate(Icc)
         Iss_feats=self.encode_with_intermediate(Iss)
 
@@ -160,36 +153,34 @@ class main_ST(nn.Module):
         for i in range(1, 5):
             loss_lambda2 += calc_content_loss(Icc_feats[i], content_feats[i])+calc_content_loss(Iss_feats[i], style_feats[i])
 
-        if W_sim:
-            W_loss = 0.0
-            # flatten intermidiate features
-            C_content_inter_flat = self.flatten_features(C_content_inter)
-            C_style_inter_flat   = self.flatten_features(C_style_inter)
-            S_content_inter_flat = self.flatten_features(S_content_inter)
-            S_style_inter_flat   = self.flatten_features(S_style_inter)
+        W_loss = 0.0
+        #flatten feature maps
+        C_content_inter_flat = self.flatten_features(C_content_inter)
+        C_style_inter_flat   = self.flatten_features(C_style_inter)
+        S_content_inter_flat = self.flatten_features(S_content_inter)
+        S_style_inter_flat   = self.flatten_features(S_style_inter)
     
-            num_layers = len(C_content_inter_flat) 
+        num_layers = len(C_content_inter_flat)  
     
-         # loop for each layer
-            for layer in range(num_layers):
-                layer_loss = 0.0
-                B = C_content_inter_flat[layer].shape[0]
-
-                for b in range(B):
-                    C_content_b = normal_W(C_content_inter_flat[layer][b:b+1])
-                    C_style_b   = normal_W(C_style_inter_flat[layer][b:b+1])
-                    S_content_b = normal_W(S_content_inter_flat[layer][b:b+1])
-                    S_style_b   = normal_W(S_style_inter_flat[layer][b:b+1])
-
-                    S_loss_c = self.sinkhorn_loss_fn(C_content_b, C_style_b).mean()
-                    S_loss_s = self.sinkhorn_loss_fn(S_content_b, S_style_b).mean()
+        # loop for each layer
+        for layer in range(num_layers):
+            layer_loss = 0.0
+            B = C_content_inter_flat[layer].shape[0]
+        
+            # loop for each image
+            for b in range(B):
+                C_content_b = normal_W(C_content_inter_flat[layer][b:b+1])
+                C_style_b   = normal_W(C_style_inter_flat[layer][b:b+1])
+                S_content_b = normal_W(S_content_inter_flat[layer][b:b+1])
+                S_style_b   = normal_W(S_style_inter_flat[layer][b:b+1])
             
-                    layer_loss += (S_loss_c + S_loss_s)
-                # take mean as a layer loss
-                layer_loss = layer_loss / (B * 2)
+                # calculate similarity loss
+                S_loss_c = self.sinkhorn_loss_fn(C_content_b, C_style_b).mean()
+                S_loss_s = self.sinkhorn_loss_fn(S_content_b, S_style_b).mean()
+        
+                layer_loss += (S_loss_c + S_loss_s)
+            
+            layer_loss = layer_loss / (B * 2)
+            W_loss += layer_loss
 
-                W_loss += layer_loss
-        else:
-            W_loss = 0
-
-        return Stylized, I_Stylized, content_loss, style_loss, loss_lambda1, loss_lambda2, W_loss                
+        return Stylized, content_loss, style_loss, loss_lambda1, loss_lambda2, W_loss           

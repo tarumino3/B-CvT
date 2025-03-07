@@ -192,7 +192,7 @@ class TransformerDecoderLayerBlock(nn.Module):
         return x
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, decoder_layer, num_layers = 3, norm=None, return_intermediate=False):
+    def __init__(self, decoder_layer, num_layers = 3, norm=None):
         """
         Args:
             decoder_layer (nn.Module): An instance of your decoder layer block (e.g., TransformerDecoderLayerBlock).
@@ -204,7 +204,6 @@ class TransformerDecoder(nn.Module):
         self.layers = _get_clones(decoder_layer, num_layers)
         self.num_layers = num_layers
         self.norm = norm
-        self.return_intermediate = return_intermediate
 
     def forward(self, content, style, h_c, w_c, h_s, w_s):
         """
@@ -218,23 +217,13 @@ class TransformerDecoder(nn.Module):
             output: Tensor of shape [B, T, d_model] after processing through the decoder.
                      If return_intermediate is True, returns a stacked tensor of all intermediate outputs.
         """
-        # content = content.permute(1, 0, 2)
-        # style = style.permute(1, 0, 2)
         output = content  # initial query is the content encoding
-        intermediates = []
         for layer in self.layers:
             # Each decoder layer fuses content and style representations.
             output = layer(output, style, h_c, w_c, h_s, w_s)
-            if self.return_intermediate:
-                if self.norm is not None:
-                    intermediates.append(self.norm(output))
-                else:
-                    intermediates.append(output)
         if self.norm is not None:
             output = self.norm(output)
-        if self.return_intermediate:
-            return torch.stack(intermediates)  # shape: [num_layers, B, T, d_model]
-        return output.unsqueeze(0)
+        return output
 
 # Example usage:
 # if __name__ == "__main__":
@@ -250,7 +239,7 @@ class TransformerDecoder(nn.Module):
 #     content = torch.randn(B, T_c, d_model)
 #     style = torch.randn(B, T_s, d_model)
 #     decoder_layer = TransformerDecoderLayerBlock(d_model=d_model, nhead=nhead, dropout=0.1, mlp_ratio=4.0)
-#     decoder = TransformerDecoder(decoder_layer, num_layers=3, norm=nn.LayerNorm(d_model), return_intermediate=True)
+#     decoder = TransformerDecoder(decoder_layer, num_layers=3, norm=nn.LayerNorm(d_model))
 
 #     # Forward pass through the decoder.
 #     output= decoder(content, style, h_c, w_c, h_s, w_s)

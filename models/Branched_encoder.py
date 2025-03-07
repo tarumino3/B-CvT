@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from einops import rearrange
-from timm.models.layers import trunc_normal_
 
 from CvT_ST.models.cvt_block import VisionTransformer
 
