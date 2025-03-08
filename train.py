@@ -1,12 +1,9 @@
 import os
-import csv
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms, datasets
 from PIL import Image
 from torchvision.utils import save_image
-import wandb
 import argparse
 
 from models.main_ST import main_ST
@@ -14,15 +11,14 @@ from models.Branched_encoder import BranchedStyleContentEncoder
 from models.conv_transformer_decoder import TransformerDecoder, TransformerDecoderLayerBlock
 from models.CNNs import CNNDecoder, vgg
 
-
 def get_args():
     parser = argparse.ArgumentParser(description="Style Transfer Training Script with Argument Parsing")
     # Paths
-    parser.add_argument('--content_folder', type=str, default="/data/content", help="Path to content folder")
-    parser.add_argument('--style_folder', type=str, default="/data/style", help="Path to style folder")
-    parser.add_argument('--save_folder', type=str, default="/out/train", help="Folder to save output images")
-    parser.add_argument('--checkpoint_folder', type=str, default="/checkpoints/train", help="Folder to save checkpoints")
-    parser.add_argument('--vgg_weights_path', type=str, default="/checkpoints/vgg/vgg_normalised.pth", help="Path to VGG weights")
+    parser.add_argument('--content_folder', type=str, default="./data/content", help="Path to content folder")
+    parser.add_argument('--style_folder', type=str, default="./data/style", help="Path to style folder")
+    parser.add_argument('--save_folder', type=str, default="./out/train", help="Folder to save output images")
+    parser.add_argument('--checkpoint_folder', type=str, default="./checkpoints/train", help="Folder to save checkpoints")
+    parser.add_argument('--vgg_weights_path', type=str, default="./checkpoints/vgg_normalised.pth", help="Path to VGG weights")
     
     # Hyperparameters
     parser.add_argument('--batch_size', type=int, default=4, help="Batch size")
@@ -35,10 +31,10 @@ def get_args():
     parser.add_argument('--lamda2_w', type=float, default=3.0, help="Identity loss weight 2")
     parser.add_argument('--Wsim_w', type=float, default=0.03, help="Similarity loss weight")
     
-    # WandB configuration
-    parser.add_argument('--wandb_project', type=str, default="B-CvT", help="WandB project name")
-    parser.add_argument('--wandb_name', type=str, default="train", help="WandB run name")
-    
+    # Logging and checkpoints
+    parser.add_argument('--log_interval', type=int, default=50, help="Interval for logging training metrics")
+    parser.add_argument('--checkpoints_save_interval', type=int, default=10000, help="Interval for saving checkpoints")
+   
     return parser.parse_args()
 
 def safe_loader(path):
@@ -68,6 +64,9 @@ class SafeImageFolder(datasets.ImageFolder):
     
 if __name__ == "__main__":
     args = get_args()
+
+    os.makedirs(args.save_folder, exist_ok=True)
+    os.makedirs(args.checkpoint_folder, exist_ok=True)
     
     # Set up the GradScaler for AMP training
     scaler = torch.cuda.amp.GradScaler()
@@ -87,18 +86,7 @@ if __name__ == "__main__":
     content_loader  = torch.utils.data.DataLoader(content_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2, drop_last=True)
     style_loader    = torch.utils.data.DataLoader(style_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2, drop_last=True)
 
-    # Initialize wandb for logging
-    wandb.init(project=args.wandb_project, name=args.wandb_name)
-    wandb.config.update({
-        "base_lr": args.base_lr,
-        "content_w": args.content_w,
-        "style_w": args.style_w,
-        "lamda1_w": args.lamda1_w,
-        "lamda2_w": args.lamda2_w,
-        "Wsim_w": args.Wsim_w,
-        "batch_size": args.batch_size
-    })
-
+    #Initialize models
     decoder_layer_instance = TransformerDecoderLayerBlock()
     SC_encoder = BranchedStyleContentEncoder()
     transformerDecoder = TransformerDecoder(decoder_layer=decoder_layer_instance)
@@ -155,18 +143,13 @@ if __name__ == "__main__":
 
         running_loss += loss.item()
     
-        if (step + 1) % 50 == 0:
-            wandb.log({
-                "iter": iteration_count,
-                "loss": loss.item(),
-                "c_loss": c_loss.item(),
-                "s_loss": s_loss.item(),
-                "l_identity1": l_identity1.item(),
-                "l_identity2": l_identity2.item(),
-                "sim_loss": -sim_loss.item(),
-                "lr": optimizer.param_groups[0]['lr'],
-                "grad_norm": torch.norm(next(network.SC_encoder.parameters()).grad.detach())
-            })
+        if (step + 1) % args.log_interval == 0:
+            grad_norm = torch.norm(next(network.SC_encoder.parameters()).grad.detach())
+            print(f"Iteration {iteration_count}: Loss = {loss.item():.4f}, "
+                  f"Content Loss = {c_loss.item():.4f}, Style Loss = {s_loss.item():.4f}, "
+                  f"Identity1 = {l_identity1.item():.4f}, Identity2 = {l_identity2.item():.4f}, "
+                  f"Sim Loss = {sim_loss.item():.4f},"
+                  f"Grad Norm = {grad_norm:.4f}")
 
         if (step + 1) % args.save_interval == 0:
             output_name = '{:s}/{:s}_{:s}.jpg'.format(
@@ -176,11 +159,11 @@ if __name__ == "__main__":
             combined_out = torch.cat((style_img, combined_out), 0)
             save_image(combined_out, output_name)
     
-        if (step + 1) % (args.iterations // 2) == 0:
-            torch.save(network.state_dict(), os.path.join(args.checkpoint_folder, f"main_ST_{step}.pth"))
-            torch.save(optimizer.state_dict(), os.path.join(args.checkpoint_folder, f"Optimizer_{step}.pth"))
-            print(f"Saved model weights at iteration {step}")
+        if (step + 1) % args.checkpoints_save_interval == 0:
+            checkpoint_path = os.path.join(args.checkpoint_folder, f"main_ST_{step}.pth")
+            optimizer_path = os.path.join(args.checkpoint_folder, f"Optimizer_{step}.pth")
+            torch.save(network.state_dict(), checkpoint_path)
+            torch.save(optimizer.state_dict(), optimizer_path)
+            print(f"Saved checkpoint at iteration {step + 1}")
 
-    avg_loss = running_loss / iteration_count
-    wandb.summary["avg_loss"] = avg_loss
-    wandb.finish()
+    print(f"Training complete.")

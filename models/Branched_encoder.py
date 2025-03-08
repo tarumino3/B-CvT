@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 
-from CvT_ST.models.cvt_block import VisionTransformer
+from models.cvt_block import VisionTransformer
 
 common_spec = {
     "NUM_STAGES": 2,
@@ -225,15 +225,15 @@ class BranchedStyleContentEncoder(nn.Module):
 
         # For test
         if test == 'content':
-            content_feat = x
+            content_feat = common_feat
             for stage in self.content_branch:
                 content_feat, H, W = get_final_feat_from_stage(stage, content_feat)
-            return 0, content_feat,0,0, H, W
+            return None, content_feat, None, None, H, W
         if test == 'style':
-             style_feat = x
+             style_feat = common_feat
              for stage in self.style_branch:
                  style_feat, _, _ = get_final_feat_from_stage(stage, style_feat)
-             return style_feat,0,0,0, H, W
+             return style_feat, None, None, None, _, _
         
         #For training
         style_intermediates, content_intermediates, H, W= self.forward_branch(common_feat, return_intermediates=True)

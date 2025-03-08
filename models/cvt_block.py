@@ -1,13 +1,19 @@
-from itertools import repeat
-from collections.abc import Iterable
-from collections import OrderedDict
-import numpy as np
+# -----------------------------------------------------------------------------------------
+# This code heavily depends on the original Convolutional Vision Transformer repository
+# which is licensed under the MIT License.
+# https://github.com/microsoft/CvT
+# Modified by Minoru Tarumi
+# -----------------------------------------------------------------------------------------
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import logging
+import numpy as np
+from itertools import repeat
+from collections.abc import Iterable
+from collections import OrderedDict
 from einops import rearrange
 from einops.layers.torch import Rearrange
-import logging
 from timm.layers import DropPath, trunc_normal_
 
 def _ntuple(n):

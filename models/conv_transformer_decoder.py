@@ -1,12 +1,13 @@
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from collections import OrderedDict
-from einops.layers.torch import Rearrange
-from einops import rearrange
-from CvT_ST.models.cvt_block import Attention, Mlp
 from timm.layers import DropPath
-import copy
+from collections import OrderedDict
+from einops import rearrange
+from einops.layers.torch import Rearrange
+
+from models.cvt_block import Attention, Mlp
 
 def _get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])

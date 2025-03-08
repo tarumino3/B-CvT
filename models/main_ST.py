@@ -1,10 +1,10 @@
 import torch.nn as nn
-import numpy as np
 from geomloss import SamplesLoss
-from CvT_ST.function import calc_content_loss, calc_style_loss, normal, normal_W, branch_cosine_similarity_loss
 from einops import rearrange
 from itertools import repeat
 from collections.abc import Iterable
+
+from function import calc_content_loss, calc_style_loss, normal, normal_W
 
 def _ntuple(n):
     def parse(x):
@@ -123,11 +123,8 @@ class main_ST(nn.Module):
         S_style, S_content, S_style_inter, S_content_inter, h_s, w_s = self.SC_encoder(style_image, test=('style' if test else None))
 
         embedd_C_content = self.convpos(C_content, h_c, w_c)
-        embedd_S_content = self.convpos(S_content, h_s, w_s)
-
         hs = self.transformer(embedd_C_content, S_style ,h_c, w_c, h_s, w_s)
         Stylized = self.decode(hs, h_c, w_c, (content_H, content_W))
-
         if test:
             return Stylized       
 
@@ -143,6 +140,7 @@ class main_ST(nn.Module):
         content_loss = loss_c
         style_loss = loss_s 
 
+        embedd_S_content = self.convpos(S_content, h_s, w_s)
         Icc = self.decode(self.transformer(embedd_C_content, C_style, h_c, w_c, h_c, w_c), h_c, w_c, (content_H, content_W))
         Iss = self.decode(self.transformer(embedd_S_content, S_style, h_s, w_s, h_s, w_s), h_s, w_s, (style_H, style_W))
         Icc_feats=self.encode_with_intermediate(Icc)
@@ -182,5 +180,5 @@ class main_ST(nn.Module):
             
             layer_loss = layer_loss / (B * 2)
             W_loss += layer_loss
-
-        return Stylized, content_loss, style_loss, loss_lambda1, loss_lambda2, W_loss           
+        similarity_loss = - W_loss
+        return Stylized, content_loss, style_loss, loss_lambda1, loss_lambda2, similarity_loss          
