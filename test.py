@@ -2,6 +2,7 @@ import os
 import glob
 import argparse
 import torch
+import numpy as np
 from torchvision import transforms
 from PIL import Image
 from torchvision.utils import save_image
@@ -60,10 +61,10 @@ def main():
 
     # Create the results directory if it doesn't exist.
     os.makedirs(args.results_dir, exist_ok=True)
+    
     transform = transforms.Compose([
     transforms.ToTensor()
     ])
-
     # Process each combination of content and style images.
     with torch.no_grad():
         for c_path in content_paths:

@@ -71,25 +71,6 @@ def get_intermediates_from_stage(stage, x):
         cls_tokens, x = torch.split(x, [1, H * W], 1)
     return intermediates, H, W
 
-def get_final_feat_from_stage(stage, x):
-    x = stage.patch_embed(x) # Apply patch embedding.
-    B, C, H, W = x.size()
-    x = rearrange(x, 'b c h w -> b (h w) c')
-    
-    if stage.cls_token is not None:
-        cls_tokens = stage.cls_token.expand(B, -1, -1)
-        x = torch.cat((cls_tokens, x), dim=1)
-
-    x = stage.pos_drop(x)
-
-    for blk in stage.blocks:
-        x = blk(x, H, W)
-    
-    if stage.cls_token is not None:
-        cls_tokens, x = torch.split(x, [1, H * W], 1)
-    
-    return x, H, W
-
 class BranchedStyleContentEncoder(nn.Module):
     def __init__(self,
                  in_chans=3,
@@ -192,9 +173,8 @@ class BranchedStyleContentEncoder(nn.Module):
             x, _ = stage(x)
         return x
     
-    def forward_branch(self, x, return_intermediates=False):
+    def forward_branch(self, x):
         # Process x through style and content branches independently.
-        if return_intermediates:
             style_feats = []
             content_feats = []
             style_feat = x
@@ -209,34 +189,26 @@ class BranchedStyleContentEncoder(nn.Module):
                 content_feats.extend(inters)
                 content_feat = inters[-1]
             return style_feats, content_feats, H, W
-        else:
-            style_feat = x
-            for stage in self.style_branch:
-                s_feat, _, _ = get_final_feat_from_stage(stage, style_feat)
-                style_feat = s_feat
-            content_feat = x
-            for stage in self.content_branch:
-                c_feat, H, W = get_final_feat_from_stage(stage, content_feat)
-                content_feat = c_feat
-            return style_feat, content_feat, H, W
         
     def forward(self, x, test = None):
         common_feat = self.forward_common(x)
 
         # For test
-        if test == 'content':
+        if test == 'content':            
             content_feat = common_feat
             for stage in self.content_branch:
-                content_feat, H, W = get_final_feat_from_stage(stage, content_feat)
-            return None, content_feat, None, None, H, W
+                inters, H, W = get_intermediates_from_stage(stage, content_feat)
+                content_feat = inters[-1]
+            return None, content_feat, None, None, int(H), int(W)
         if test == 'style':
-             style_feat = common_feat
-             for stage in self.style_branch:
-                 style_feat, _, _ = get_final_feat_from_stage(stage, style_feat)
-             return style_feat, None, None, None, _, _
+            style_feat = common_feat
+            for stage in self.style_branch:
+                inters, H, W = get_intermediates_from_stage(stage, style_feat)
+                style_feat = inters[-1]
+            return style_feat, None, None, None, int(H), int(W)
         
         #For training
-        style_intermediates, content_intermediates, H, W= self.forward_branch(common_feat, return_intermediates=True)
+        style_intermediates, content_intermediates, H, W= self.forward_branch(common_feat)
         style_encoding = style_intermediates[-1]
         content_encoding = content_intermediates[-1]
         return style_encoding, content_encoding, style_intermediates, content_intermediates, int(H), int(W)
