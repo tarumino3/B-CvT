@@ -77,7 +77,9 @@ class main_ST(nn.Module):
         self.transformer = transformer
         self.decoder = CNN_decoder
 
-        self.sinkhorn_loss_fn = SamplesLoss("sinkhorn", debias=True)
+        # epcilon = blur ^ 2
+        # trade-off between speed (scaling < .4) and accuracy (scaling > .9).
+        self.sinkhorn_loss_fn = SamplesLoss("sinkhorn", debias=True, blur=0.05, scaling= 0.5) 
 
         self.convpos = Content_ConvEmbed(
                  patch_size=3,
