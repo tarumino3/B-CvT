@@ -2,7 +2,6 @@ import os
 import glob
 import argparse
 import torch
-import numpy as np
 from torchvision import transforms
 from PIL import Image
 from torchvision.utils import save_image
