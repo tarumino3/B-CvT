@@ -4,60 +4,28 @@ This is an official implementation of
 ## Requireents
 You can find all dependencies in environment.yml file. If you use conda, you can create environment and install all libraries by using following command. 
 
-conda env create -f environment.yml -n your_env_name
+ <code>```conda env create -f environment.yml -n your_env_name```</code>
 
 Please install geomloss library when to train.
 
-pip install geomloss==0.2.6
+<code>```pip install geomloss==0.2.6```</code>
 
-Pre-trained Models and Weights
+## Pre-trained Models and Datasets
 
-Download the pre-trained model weights from the following links and place them under checkpoints/:
+Download the pre-trained model weights from the following links and place them under  checkpoints/:
 
-Model A: Download Link
+B-CvT : [Download Link](https://drive.google.com/file/d/155VXRYsIaJjJVefdx_6TvxY-QWD6uUsl/view?usp=drive_link)
+VGG : [Download Link](https://drive.google.com/file/d/1E2Qcq8F1a-5yB7PsoMRqKzVBkfAfKiLH/view?usp=drive_link)
 
-Model B: Download Link
+Download the dataset from Dataset Website below and unzip MS_COCO and WikiArt under ./data/content and ./data/style respectively.
 
-Dataset
+MS_COCO : [Download Link](https://cocodataset.org/#download)
+WikiArt : [Download Link](https://github.com/cs-chan/ArtGAN/tree/master/WikiArt%20Dataset)
 
-Link to the dataset and instructions on how to prepare it:
+## Training
 
-Download the dataset from Dataset Website.
+## Test
 
-Unzip and arrange the files as follows:
-
-data/
-├── train/
-│   ├── images/
-│   └── annotations/
-└── val/
-    ├── images/
-    └── annotations/
-
-Training
-
-Provide commands and key hyperparameters to train the model:
-
-python train.py \
-    --config config/train.yaml \
-    --data_root data/ \
-    --output_dir outputs/ \
-    --batch_size 16 \
-    --learning_rate 1e-4 \
-    --epochs 100
-
-Explain any optional flags or configurations.
-
-Evaluation
-
-Describe how to run evaluation or inference:
-
-python evaluate.py \
-    --checkpoint checkpoints/model_best.pth \
-    --data_root data/val/ \
-    --output_dir results/
-
-Include metrics calculation scripts if applicable.
 
 License
 
