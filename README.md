@@ -1,5 +1,5 @@
 # B-CvT: A Style Transfer Framework for Content Preservation and Fairness in Skin Lesion Imaging
-This is an official implementation of 
+This is an official implementation of B-CvT: A Style Transfer Framework for Content Preservation and Fairness in Skin Lesion Imaging. 
 
 ## Requireents
 You can find all dependencies in environment.yml file. If you use conda, you can create environment and install all libraries by using following command. 
