@@ -1,35 +1,48 @@
 # B-CvT: A Style Transfer Framework for Content Preservation and Fairness in Skin Lesion Imaging
-This is an official implementation of B-CvT: A Style Transfer Framework for Content Preservation and Fairness in Skin Lesion Imaging. 
+This repository is the official implementation of B-CvT, a style transfer framework designed to preserve content and promote fairness in skin lesion imaging.
 
 ## Requireents
-You can find all dependencies in environment.yml file. If you use conda, you can create environment and install all libraries by using following command. 
-
-```bash
+All dependencies are listed in ```code environment.yml```. To install via Conda:
+```
 conda env create -f environment.yml -n your_env_name
 ```
 
-Please install geomloss library when to train.
-
-```bash
+Before training, install the additional Python package:
+```
 pip install geomloss==0.2.6
 ```
 
 ## Pre-trained Models and Datasets
 
-Download the pre-trained model weights from the following links and place them under  checkpoints/:
+Download and place the pre-trained weights in  ```code checkpoints/```:
 
 B-CvT : [Download Link](https://drive.google.com/file/d/155VXRYsIaJjJVefdx_6TvxY-QWD6uUsl/view?usp=drive_link)
+
 VGG : [Download Link](https://drive.google.com/file/d/1E2Qcq8F1a-5yB7PsoMRqKzVBkfAfKiLH/view?usp=drive_link)
 
-Download the dataset from Dataset Website below and unzip MS_COCO and WikiArt under data/content/ and data/style/ respectively.
+Download the datasets and organize them as follows:
 
 MS_COCO : [Download Link](https://cocodataset.org/#download)
+Unzip to ```code data/content/ ```.
+
 WikiArt : [Download Link](https://github.com/cs-chan/ArtGAN/tree/master/WikiArt%20Dataset)
+Unzip to ```code data/style/```.
 
 ## Training
 
+To start training the style transfer model put the content images and the style images under  data/content/ and data/style/ respectively, and then run:
+
+```
+python train.py --content_folder ./data/content --style_folder ./data/style 
+```
+
+Please refer to train.py for other paramaters.
+
 ## Test
 
-## License
+To stylize single images or entire directories, run:
+```
+python test.py --content <content_image_or_dir> --style <style_image_or_dir>
+```
 
 ## Citation
