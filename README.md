@@ -7,11 +7,6 @@ All dependencies are listed in ```code environment.yml```. To install via Conda:
 conda env create -f environment.yml -n your_env_name
 ```
 
-Before training, install the additional Python package:
-```
-pip install geomloss==0.2.6
-```
-
 ## Pre-trained Models and Datasets
 
 Download and place the pre-trained weights in  ```code checkpoints/```:
@@ -36,7 +31,7 @@ To start training the style transfer model put the content images and the style 
 python train.py --content_folder ./data/content --style_folder ./data/style 
 ```
 
-Please refer to train.py for other paramaters.
+Please refer to ```code train.py``` for other paramaters.
 
 ## Test
 
