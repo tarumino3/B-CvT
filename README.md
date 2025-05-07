@@ -4,7 +4,7 @@ This repository is the official implementation of B-CvT, a style transfer framew
 ## Requireents
 All dependencies are listed in ```environment.yml```. To install via Conda:
 ```
-conda env create -f environment.yml -n your_env_name
+conda env create -f environment.yml -n <your_env_name>
 ```
 
 ## Pre-trained Models and Datasets
