@@ -23,6 +23,10 @@ Unzip to ```data/content/```.
 WikiArt : [Download Link](https://github.com/cs-chan/ArtGAN/tree/master/WikiArt%20Dataset)
 Unzip to ```data/style/```.
 
+PAD-UFES-20 : [Download Link](https://data.mendeley.com/datasets/zr7vgbcyr2/1)
+
+Croped Fitzpatrick 17k Dataset : [Download Link](https://drive.google.com/drive/folders/1ajvmUIe1Z_kY-pOUhpMI4U4RBNiYKtjL?usp=drive_link)
+
 ## Training
 
 To start training the style transfer model put the content images and the style images under  ```data/content/``` and ```data/style/``` respectively, and then run:
