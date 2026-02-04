@@ -53,4 +53,5 @@ python test.py --content <content_image_or_dir> --style <style_image_or_dir>
   title={B-CvT: A Style Transfer Framework for Content Preservation and Fairness in Skin Lesion Imaging}, 
   year={2026},
   pages={1-1},
-  }```
+  }
+```
