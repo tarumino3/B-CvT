@@ -45,3 +45,12 @@ python test.py --content <content_image_or_dir> --style <style_image_or_dir>
 ```
 
 ## Citation
+
+```
+@article{Tarumi2026Bcvt,
+  author={Tarumi, Minoru and Pathak, Jaya and Rajput, Amitesh Singh and Challa, Jagat Sesh and Chamola, Vinay},
+  journal={IEEE Access}, 
+  title={B-CvT: A Style Transfer Framework for Content Preservation and Fairness in Skin Lesion Imaging}, 
+  year={2026},
+  pages={1-1},
+  }```
